@@ -9,34 +9,57 @@ import {} from 'googlemaps';
 })
 export class MapPageComponent implements OnInit {
   
+  mapLoaded: boolean;
   map: google.maps.Map;
   center: google.maps.LatLngLiteral;
+
+  source: google.maps.LatLngLiteral;
+  destination: google.maps.LatLngLiteral;
+
   options: google.maps.MapOptions = {
     mapTypeId: google.maps.MapTypeId.ROADMAP,
-    scrollwheel: false,
+    scrollwheel: true,
     disableDefaultUI: true,
     disableDoubleClickZoom: true,
-    zoom: 16
+    zoom: 12
   }
 
+  ds: google.maps.DirectionsService;
+  dr: google.maps.DirectionsRenderer;
+
   ngOnInit() {
+
+    this.ds = new google.maps.DirectionsService();
+    this.dr = new google.maps.DirectionsRenderer({
+      map: null,
+      suppressMarkers: true
+    });
+
     navigator.geolocation.getCurrentPosition(position => {
 
-      // getting the center of the map
-      this.center = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
+      this.source = {
+        lat: 37.4220656,
+        lng: -122.0840897
+      };
+
+      this.destination = {
+        lat: 37.342226,
+        lng: -122.0256165
       };
 
       // initialize the map container
       this.map = new google.maps.Map(document.getElementById('map-canvas'), {
         ...this.options,
-        center: this.center
+        center: this.source
+      });
+
+      this.map.addListener('tilesloaded', () => {
+        this.mapLoaded = true;
       });
 
       // adding a marker
       var markerStart = new google.maps.Marker({
-        position: this.center,
+        position: this.source,
         icon: {
           url: './assets/imgs/truck_pin.svg',
           anchor: new google.maps.Point(35,10),
@@ -44,7 +67,37 @@ export class MapPageComponent implements OnInit {
         },
         map: this.map
       });
+
+      var destinationMarker = new google.maps.Marker({
+        position: this.destination,
+        icon: {
+          url: './assets/imgs/destination_custom_pin.svg',
+          anchor: new google.maps.Point(35,10),
+          scaledSize: new google.maps.Size(100, 100)
+        },
+        map: this.map
+      });
+
+      this.setRoutePolyline();
     });
   }
 
+  setRoutePolyline() {
+    let request = {
+      origin: this.source,
+      destination: this.destination,
+      travelMode: google.maps.TravelMode.DRIVING
+    };
+
+    this.ds.route(request, (response, status) => {
+      this.dr.setOptions({
+        suppressPolylines: false,
+        map: this.map
+      });
+
+      if (status == google.maps.DirectionsStatus.OK) {
+        this.dr.setDirections(response);
+      }
+    })
+  }
 }
